@@ -61,14 +61,11 @@ if [ ${#} != 0 ]; then
 	done
 else
 	if [ -e ${ALTITUDE_CFG} ]; then
-		help
+		. ${ALTITUDE_CFG}
 	else
 		init
 	fi
-	exit 0
 fi
-
-. ${ALTITUDE_CFG}
 
 # A variant of 'download_file' used to specify the target directory
 # $1: source URL
