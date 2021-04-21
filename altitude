@@ -45,6 +45,7 @@ init()
 }
 
 if [ ${#} != 0 ]; then
+	[ -e ${ALTITUDE_CFG} ] && . ${ALTITUDE_CFG}
 	for arg in ${@}; do
 		v="${arg#*=}"
 		case ${arg} in
@@ -54,18 +55,21 @@ if [ ${#} != 0 ]; then
 			--release=*) export RELEASE="${v}" ;;
 			--arch=*) export ARCH="${v}" ;;
 			--distro=*) export DISTRO="${v}" ;;
-			--install=*) export PACKAGES="${@}" && METHOD="install" ;;
-			--uninstall=*) export PACKAGES="${@}" && METHOD="uninstall" ;;
+			--install=*) export PACKAGES="${v}" && METHOD="install" ;;
+			--uninstall=*) export PACKAGES="${v}" && METHOD="uninstall" ;;
 			--init) init ;;
 		esac
 	done
 else
 	if [ -e ${ALTITUDE_CFG} ]; then
-		. ${ALTITUDE_CFG}
+		help
 	else
 		init
 	fi
+	exit 0
 fi
+
+mkdir -p ${SYSROOT}
 
 # A variant of 'download_file' used to specify the target directory
 # $1: source URL
@@ -93,12 +97,11 @@ get_packages_list ()
     local RELEASE=$2
     local BASE="`no_trailing_slash \"$1\"`"
     local SRCFILE DSTFILE
-    for UA in $ARCH; do
-        SRCFILE="$BASE/${DISTRO}/dists/$RELEASE/main/binary-$UA/Packages.xz"
-        DSTFILE="$DOWNLOAD_DIR/Packages-$UA.xz"
-        download_file "$SRCFILE" "$DSTFILE" || exit 255
-        (cd $DOWNLOAD_DIR && xzcat Packages-$UA.xz > Packages-$UA)
-    done
+	SRCFILE="$BASE/${DISTRO}/dists/$RELEASE/main/binary-$ARCH/Packages.xz"
+	DSTFILE="$DOWNLOAD_DIR/Packages-$ARCH.xz"
+	download_file "$SRCFILE" "$DSTFILE" || return 1
+	(cd $DOWNLOAD_DIR && xzcat Packages-$ARCH.xz/Packages.xz > Packages-$ARCH)
+
 
     # Write a small awk script used to extract filenames for a given package
     cat > $DOWNLOAD_DIR/extract-filename.awk <<EOF
@@ -168,7 +171,8 @@ install()
 		echo "Extracting $SRC_PKG"
 		ar -x $SRC_PKG
 		tar -xf data.tar.* -C ${FAKEROOT} || return 1
-		(cd ${FAKEROOT}; find . -type f >${ALTITUDE_INSTALLED_LIST}/${PACKAGE}.list) || return 1
+		rm -f control.tar.* data.tar.* debian-history
+		(cd ${FAKEROOT}; find . -type f) >${ALTITUDE_INSTALLED_LIST}/${PACKAGE}.list || return 1
 		rsync -r ${FAKEROOT}/* ${SYSROOT} >/dev/null 2>&1 || return 1
 		rm -rf ${FAKEROOT}
 	done
