@@ -48,6 +48,7 @@ if [ ${#} != 0 ]; then
 	for arg in ${@}; do
 		v="${arg#*=}"
 		case ${arg} in
+			--help|-h) help && exit 0 ;;
 			--sysroot=*|-s\ *) export SYSROOT="${v}" ;;
 			--mirror=*|-m\ *) export MIRROR="${v}" ;;
 			--release=*|-r\ *) export RELEASE="${v}" ;;
