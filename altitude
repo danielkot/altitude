@@ -21,7 +21,7 @@ help()
 
 
                 Usage:
-                `basename ${0}` [--sysroot|-s] [--mirror|-m] [--release|-r] [--arch|-a] [--distro|-d] <--install|i || --uninstall|-u> <PACKAGES>
+                `basename ${0}` [--sysroot] [--mirror] [--release] [--arch] [--distro] <--install || --uninstall> <PACKAGES>
 
 
 help
@@ -49,13 +49,13 @@ if [ ${#} != 0 ]; then
 		v="${arg#*=}"
 		case ${arg} in
 			--help|-h) help && exit 0 ;;
-			--sysroot=*|-s\ *) export SYSROOT="${v}" ;;
-			--mirror=*|-m\ *) export MIRROR="${v}" ;;
-			--release=*|-r\ *) export RELEASE="${v}" ;;
-			--arch=*|-a\ *) export ARCH="${v}" ;;
-			--distro=*|-d\ *) export DISTRO="${v}" ;;
-			--install=*|-i\ *) export PACKAGES="${@}" && METHOD="install" ;;
-			--uninstall=*|-u\ *) export PACKAGES="${@}" && METHOD="uninstall" ;;
+			--sysroot=*) export SYSROOT="${v}" ;;
+			--mirror=*) export MIRROR="${v}" ;;
+			--release=*) export RELEASE="${v}" ;;
+			--arch=*) export ARCH="${v}" ;;
+			--distro=*) export DISTRO="${v}" ;;
+			--install=*) export PACKAGES="${@}" && METHOD="install" ;;
+			--uninstall=*) export PACKAGES="${@}" && METHOD="uninstall" ;;
 			--init) init ;;
 		esac
 	done
