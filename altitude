@@ -95,7 +95,7 @@ get_packages_list ()
     local SRCFILE DSTFILE
     for UA in $ARCH; do
         SRCFILE="$BASE/${DISTRO}/dists/$RELEASE/main/binary-$UA/Packages.xz"
-        DSTFILE="$DOWNLOAD_DIR/Packages-$UA.bz2"
+        DSTFILE="$DOWNLOAD_DIR/Packages-$UA.xz"
         download_file "$SRCFILE" "$DSTFILE" || exit 255
         (cd $DOWNLOAD_DIR && xzcat Packages-$UA.xz > Packages-$UA)
     done
