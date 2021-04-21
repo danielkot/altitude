@@ -182,7 +182,7 @@ uninstall()
 {
 	for PACKAGE in $PACKAGES; do
 		for FILE in `cat ${ALTITUDE_INSTALLED_LIST}/${PACKAGE}.list`; do
-			rm -f ${FILE} || return 1
+			(cd ${SYSROOT}; rm -f ${FILE}) || return 1
 		done
 		rm -f ${ALTITUDE_INSTALLED_LIST}/${PACKAGE}.list || return 1
 	done
