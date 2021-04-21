@@ -51,8 +51,8 @@ if [ ${#} != 0 ]; then
 			--sysroot=*|-s\ *) export SYSROOT="${v}" ;;
 			--mirror=*|-m\ *) export MIRROR="${v}" ;;
 			--release=*|-r\ *) export RELEASE="${v}" ;;
-			--arch=*|-a\ *) export ARCH="${v}"
-			--distro=*|-d\ *) export DISTRO="${v}";;
+			--arch=*|-a\ *) export ARCH="${v}" ;;
+			--distro=*|-d\ *) export DISTRO="${v}" ;;
 			--install=*|-i\ *) export PACKAGES="${@}" && METHOD="install" ;;
 			--uninstall=*|-u\ *) export PACKAGES="${@}" && METHOD="uninstall" ;;
 			--init) init ;;
