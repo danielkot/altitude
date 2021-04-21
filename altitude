@@ -97,7 +97,7 @@ get_packages_list ()
         SRCFILE="$BASE/${DISTRO}/dists/$RELEASE/main/binary-$UA/Packages.xz"
         DSTFILE="$DOWNLOAD_DIR/Packages-$UA.bz2"
         download_file "$SRCFILE" "$DSTFILE" || exit 255
-        (cd $DOWNLOAD_DIR && xzcat Packages-$UA.bz2 > Packages-$UA)
+        (cd $DOWNLOAD_DIR && xzcat Packages-$UA.xz > Packages-$UA)
     done
 
     # Write a small awk script used to extract filenames for a given package
