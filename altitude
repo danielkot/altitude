@@ -1,0 +1,191 @@
+#!/usr/bin/env bash
+
+# Altitude, a simple apt wrapper written in shell
+# Code borrowed from Google's Android toolchain repo, file named "build-lucid-multilib-toolchain.sh"
+
+set -eE
+
+DEFAULT_DISTRO="debian"
+DEFAULT_RELEASE="buster"
+DEFAULT_ARCH="amd64"
+MIRROR="http://mirrors.us.kernel.org"
+ALTITUDE_CFG=".altitude/altitude.cfg"
+ALTITUDE_INSTALLED_LIST=".altitude/altitude_installed.list.d"
+DOWNLOAD_DIR="`mktemp -d /tmp/altitude_dl.XXXXXXX`"
+
+trap "rm -rf /tmp/altitude_* && exit 1" EXIT
+
+help()
+{
+        cat <<help
+
+
+                Usage:
+                `basename ${0}` [--sysroot|-s] [--mirror|-m] [--release|-r] [--arch|-a] [--distro|-d] <--install|i || --uninstall|-u> <PACKAGES>
+
+
+help
+}
+
+init()
+{
+	mkdir -p ${ALTITUDE_INSTALLED_LIST}
+	echo -e "Which default distro:\n[1] - debian\n[2] - ubuntu\n"
+	read DISTRO
+	[ -z ${DISTRO} ] && echo -e "No typed!\nDefaults to: ${DEFAULT_DISTRO}" && echo "export DISTRO=\"${DEFAULT_DISTRO}\|" >${ALTITUDE_CFG}
+	echo -e "Which default distro version:\n"
+	read RELEASE
+	[ -z ${RELEASE} ] && echo -e "No typed!\nDefaults to: ${DEFAULT_RELEASE}" && echo "export RELEASE=\"${DEFAULT_RELEASE}\|" >>${ALTITUDE_CFG}
+	echo -e "Which default destination folder:\n"
+	read SYSROOT
+	[ -z ${SYSROOT} ] && echo -e "No typed!\nDefaults to: ${HOME}/altitude" && echo "export SYSROOT=\"${HOME}/altitude\|" >>${ALTITUDE_CFG}
+	echo -e "Which default arch:\n"
+	read ARCH
+	[ -z ${ARCH} ] && echo -e "No typed!\nDefaults to: ${DEFAULT_ARCH}" && echo "export ARCH=\"${DEFAULT_ARCH}\|" >>${ALTITUDE_CFG}
+}
+
+if [ ${#} != 0 ]; then
+	for arg in ${@}; do
+		v="${arg#*=}"
+		case ${arg} in
+			--sysroot=*|-s\ *) export SYSROOT="${v}" ;;
+			--mirror=*|-m\ *) export MIRROR="${v}" ;;
+			--release=*|-r\ *) export RELEASE="${v}" ;;
+			--arch=*|-a\ *) export ARCH="${v}"
+			--distro=*|-d\ *) export DISTRO="${v}";;
+			--install=*|-i\ *) export PACKAGES="${@}" && METHOD="install" ;;
+			--uninstall=*|-u\ *) export PACKAGES="${@}" && METHOD="uninstall" ;;
+			--init) init ;;
+		esac
+	done
+else
+	if [ -e ${ALTITUDE_CFG} ]; then
+		help
+	else
+		init
+	fi
+	exit 0
+fi
+
+. ${ALTITUDE_CFG}
+
+# A variant of 'download_file' used to specify the target directory
+# $1: source URL
+# $2: target directory
+download_file()
+{
+    local URL="$1"
+    local DIR="$2"
+    local DST="$DIR/`basename $URL`"
+    mkdir -p $DIR
+    wget -c --no-check-cert "$URL" -O "$DST" || false
+}
+
+no_trailing_slash()
+{
+    echo ${1##/}
+}
+
+# Load the Debian packages file. This is a long text file that will list
+# each package for a given release.
+# $1: Mirror base URL (e.g. http://mirrors.us.kernel.org/)
+# $2: Release name
+get_packages_list ()
+{
+    local RELEASE=$2
+    local BASE="`no_trailing_slash \"$1\"`"
+    local SRCFILE DSTFILE
+    for UA in $ARCH; do
+        SRCFILE="$BASE/${DISTRO}/dists/$RELEASE/main/binary-$UA/Packages.xz"
+        DSTFILE="$DOWNLOAD_DIR/Packages-$UA.bz2"
+        download_file "$SRCFILE" "$DSTFILE" || exit 255
+        (cd $DOWNLOAD_DIR && xzcat Packages-$UA.bz2 > Packages-$UA)
+    done
+
+    # Write a small awk script used to extract filenames for a given package
+    cat > $DOWNLOAD_DIR/extract-filename.awk <<EOF
+BEGIN {
+    # escape special characters in package name
+    gsub("\\\\.","\\\\.",PKG)
+    gsub("\\\\+","\\\\+",PKG)
+    FILE = ""
+    PACKAGE = ""
+}
+
+\$1 == "Package:" {
+    if (\$2 == PKG) {
+        PACKAGE = \$2
+    } else {
+        PACKAGE = ""
+    }
+}
+
+\$1 == "Filename:" && PACKAGE == PKG {
+    FILE = \$2
+}
+
+END {
+    print FILE
+}
+EOF
+}
+
+# Convert an unversioned package name into a .deb package URL
+# $1: Package name without version information (e.g. libc6-dev)
+# $2: Mirror base URL
+# $3: Arch
+get_package_deb_url ()
+{
+    # The following is an awk command to parse the Packages file and extract
+    # the filename of a given package.
+    local BASE="`no_trailing_slash \"$1\"`"
+    local FILE=`awk -f "$DOWNLOAD_DIR/extract-filename.awk" -v PKG=$1 $DOWNLOAD_DIR/Packages-$3`
+    if [ -z "$FILE" ]; then
+        echo "Could not find filename for package $1"
+        exit 1
+    fi
+    echo "$2/${DISTRO}/$FILE"
+}
+
+install()
+{
+	get_packages_list "$MIRROR" "$RELEASE"
+	rm -f $DOWNLOAD_DIR/SOURCES && touch $DOWNLOAD_DIR/SOURCES
+	for PACKAGE in $PACKAGES; do
+		echo "Downloading $PACKAGE"
+		PKGURL=`get_package_deb_url $PACKAGE $MIRROR $ARCH`
+		echo "URL: $PKGURL"
+		download_file $PKGURL $DOWNLOAD_DIR || return 1
+	done
+	#sha1sum $DOWNLOAD_DIR/*.deb | while read LINE; do
+	#	PACKAGE=$(basename $(echo $LINE | awk '{ print $2;}'))
+	#	SHA1=$(echo $LINE | awk '{ print $1; }')
+	#	printf "%-64s %s\n" $PACKAGE $SHA1 >> $DOWNLOAD_DIR/SOURCES
+	#done
+
+	for PACKAGE in $PACKAGES; do
+		FAKEROOT="`mktemp -d /tmp/altitude_fakeroot.XXXXXXX`"
+		PKGURL=`get_package_deb_url $PACKAGE $MIRROR $ARCH`
+		SRC_PKG=$DOWNLOAD_DIR/`basename $PKGURL`
+		echo "Extracting $SRC_PKG"
+		ar -x $SRC_PKG
+		tar -xf data.tar.* -C ${FAKEROOT} || return 1
+		(cd ${FAKEROOT}; find . -type f >${ALTITUDE_INSTALLED_LIST}/${PACKAGE}.list) || return 1
+		rsync -r ${FAKEROOT}/* ${SYSROOT} >/dev/null 2>&1 || return 1
+		rm -rf ${FAKEROOT}
+	done
+}
+
+uninstall()
+{
+	for PACKAGE in $PACKAGES; do
+		for FILE in `cat ${ALTITUDE_INSTALLED_LIST}/${PACKAGE}.list`
+			rm -f ${FILE} || return 1
+		done
+		rm -f ${ALTITUDE_INSTALLED_LIST}/${PACKAGE}.list || return 1
+	done
+}
+
+${METHOD}
+trap - EXIT
+exit 0
