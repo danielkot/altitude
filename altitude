@@ -171,7 +171,7 @@ install()
 		echo "Extracting $SRC_PKG"
 		ar -x $SRC_PKG
 		tar -xf data.tar.* -C ${FAKEROOT} || return 1
-		rm -f control.tar.* data.tar.* debian-history
+		rm -f control.tar.* data.tar.* debian-history debian-binary
 		(cd ${FAKEROOT}; find . -type f) >${ALTITUDE_INSTALLED_LIST}/${PACKAGE}.list || return 1
 		rsync -r ${FAKEROOT}/* ${SYSROOT} >/dev/null 2>&1 || return 1
 		rm -rf ${FAKEROOT}
