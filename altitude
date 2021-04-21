@@ -32,16 +32,16 @@ init()
 	mkdir -p ${ALTITUDE_INSTALLED_LIST}
 	echo -e "Which default distro:\n[1] - debian\n[2] - ubuntu\n"
 	read DISTRO
-	[ -z ${DISTRO} ] && echo -e "No typed!\nDefaults to: ${DEFAULT_DISTRO}" && echo "export DISTRO=\"${DEFAULT_DISTRO}\|" >${ALTITUDE_CFG}
+	[ -z ${DISTRO} ] && echo -e "No typed!\nDefaults to: ${DEFAULT_DISTRO}" && echo "export DISTRO=\"${DEFAULT_DISTRO}\"" >${ALTITUDE_CFG}
 	echo -e "Which default distro version:\n"
 	read RELEASE
-	[ -z ${RELEASE} ] && echo -e "No typed!\nDefaults to: ${DEFAULT_RELEASE}" && echo "export RELEASE=\"${DEFAULT_RELEASE}\|" >>${ALTITUDE_CFG}
+	[ -z ${RELEASE} ] && echo -e "No typed!\nDefaults to: ${DEFAULT_RELEASE}" && echo "export RELEASE=\"${DEFAULT_RELEASE}\"" >>${ALTITUDE_CFG}
 	echo -e "Which default destination folder:\n"
 	read SYSROOT
-	[ -z ${SYSROOT} ] && echo -e "No typed!\nDefaults to: ${HOME}/altitude" && echo "export SYSROOT=\"${HOME}/altitude\|" >>${ALTITUDE_CFG}
+	[ -z ${SYSROOT} ] && echo -e "No typed!\nDefaults to: ${HOME}/altitude" && echo "export SYSROOT=\"${HOME}/altitude\"" >>${ALTITUDE_CFG}
 	echo -e "Which default arch:\n"
 	read ARCH
-	[ -z ${ARCH} ] && echo -e "No typed!\nDefaults to: ${DEFAULT_ARCH}" && echo "export ARCH=\"${DEFAULT_ARCH}\|" >>${ALTITUDE_CFG}
+	[ -z ${ARCH} ] && echo -e "No typed!\nDefaults to: ${DEFAULT_ARCH}" && echo "export ARCH=\"${DEFAULT_ARCH}\"" >>${ALTITUDE_CFG}
 }
 
 if [ ${#} != 0 ]; then
