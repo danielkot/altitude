@@ -5,6 +5,8 @@
 
 set -eE
 
+cd $(dirname $(readlink -f ${0}))
+
 DEFAULT_DISTRO="debian"
 DEFAULT_RELEASE="buster"
 DEFAULT_ARCH="amd64"
