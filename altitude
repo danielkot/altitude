@@ -171,7 +171,7 @@ install()
 		PKGURL=`get_package_deb_url $PACKAGE $MIRROR $ARCH`
 		SRC_PKG=$DOWNLOAD_DIR/`basename $PKGURL`
 		echo "Extracting $SRC_PKG"
-		ar -x $SRC_PKG
+		ar -x $SRC_PKG || return 1
 		tar -xf data.tar.* -C ${FAKEROOT} || return 1
 		rm -f control.tar.* data.tar.* debian-history debian-binary
 		(cd ${FAKEROOT}; find . -type f) >${ALTITUDE_INSTALLED_LIST}/${PACKAGE}.list || return 1
