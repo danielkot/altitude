@@ -15,7 +15,7 @@ ALTITUDE_CFG=".altitude/altitude.cfg"
 ALTITUDE_INSTALLED_LIST=".altitude/altitude_installed.list.d"
 DOWNLOAD_DIR="`mktemp -d /tmp/altitude_dl.XXXXXXX`"
 
-trap "rm -rf /tmp/altitude_* && exit 1" EXIT
+trap "rm -rf /tmp/altitude_* && exit" EXIT
 
 help()
 {
