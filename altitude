@@ -3,19 +3,17 @@
 # Altitude, a simple apt wrapper written in shell
 # Code borrowed from Google's Android toolchain repo, file named "build-lucid-multilib-toolchain.sh"
 
-set -eE
-
 cd $(dirname $(readlink -f ${0}))
 
 DEFAULT_DISTRO="debian"
 DEFAULT_RELEASE="buster"
 DEFAULT_ARCH="amd64"
-MIRROR="http://mirrors.us.kernel.org"
+MIRROR="http://mirrors.kernel.org"
 ALTITUDE_CFG=".altitude/altitude.cfg"
 ALTITUDE_INSTALLED_LIST=".altitude/altitude_installed.list.d"
 DOWNLOAD_DIR="`mktemp -d /tmp/altitude_dl.XXXXXXX`"
 
-trap "rm -rf /tmp/altitude_* && exit" EXIT
+trap "rm -rf ${DOWNLOAD_DIR} && exit" EXIT
 
 help()
 {
@@ -23,7 +21,7 @@ help()
 
 
                 Usage:
-                `basename ${0}` [--sysroot] [--mirror] [--release] [--arch] [--distro] <--install || --uninstall> <PACKAGES>
+                `basename ${0}` [--sysroot] [--mirror] [--release] [--arch] [--distro] <--install || --uninstall> --pkg
 
 
 help
@@ -34,16 +32,36 @@ init()
 	mkdir -p ${ALTITUDE_INSTALLED_LIST}
 	echo -e "Which default distro:\n[1] - debian\n[2] - ubuntu\n"
 	read DISTRO
-	[ -z ${DISTRO} ] && echo -e "No typed!\nDefaults to: ${DEFAULT_DISTRO}" && echo "export DISTRO=\"${DEFAULT_DISTRO}\"" >${ALTITUDE_CFG}
+	if [ -z ${DISTRO} ]; then
+		echo -e "No typed!\nDefaults to: ${DEFAULT_DISTRO}"
+		echo "export DISTRO=\"${DEFAULT_DISTRO}\"" >${ALTITUDE_CFG}
+	else
+		echo "export DISTRO=\"${DISTRO}\"" >${ALTITUDE_CFG}
+	fi
 	echo -e "Which default distro version:\n"
 	read RELEASE
-	[ -z ${RELEASE} ] && echo -e "No typed!\nDefaults to: ${DEFAULT_RELEASE}" && echo "export RELEASE=\"${DEFAULT_RELEASE}\"" >>${ALTITUDE_CFG}
+	if [ -z ${RELEASE} ]; then
+		echo -e "No typed!\nDefaults to: ${DEFAULT_RELEASE}"
+		echo "export RELEASE=\"${DEFAULT_RELEASE}\"" >>${ALTITUDE_CFG}
+	else
+		echo "export RELEASE=\"${RELEASE}\"" >>${ALTITUDE_CFG}
+	fi
 	echo -e "Which default destination folder:\n"
 	read SYSROOT
-	[ -z ${SYSROOT} ] && echo -e "No typed!\nDefaults to: ${HOME}/altitude" && echo "export SYSROOT=\"${HOME}/altitude\"" >>${ALTITUDE_CFG}
+	if [ -z ${SYSROOT} ]; then
+		echo -e "No typed!\nDefaults to: ${HOME}/altitude"
+		echo "export SYSROOT=\"${HOME}/altitude\"" >>${ALTITUDE_CFG}
+	else
+		echo "export SYSROOT=\"${SYSROOT}\"" >>${ALTITUDE_CFG}
+	fi
 	echo -e "Which default arch:\n"
 	read ARCH
-	[ -z ${ARCH} ] && echo -e "No typed!\nDefaults to: ${DEFAULT_ARCH}" && echo "export ARCH=\"${DEFAULT_ARCH}\"" >>${ALTITUDE_CFG}
+	if [ -z ${ARCH} ]; then
+		echo -e "No typed!\nDefaults to: ${DEFAULT_ARCH}"
+		echo "export ARCH=\"${DEFAULT_ARCH}\"" >>${ALTITUDE_CFG}
+	else
+		echo "export ARCH=\"${ARCH}\"" >>${ALTITUDE_CFG}
+	fi
 }
 
 if [ ${#} != 0 ]; then
@@ -57,8 +75,9 @@ if [ ${#} != 0 ]; then
 			--release=*) export RELEASE="${v}" ;;
 			--arch=*) export ARCH="${v}" ;;
 			--distro=*) export DISTRO="${v}" ;;
-			--install=*) export PACKAGES="${v}" && METHOD="install" ;;
-			--uninstall=*) export PACKAGES="${v}" && METHOD="uninstall" ;;
+			--install) METHOD="install" ;;
+			--uninstall) METHOD="uninstall" ;;
+			--pkg=*) export PACKAGES="`echo ${v} | tr , ' '`" ;;
 			--init) init ;;
 		esac
 	done
@@ -92,7 +111,7 @@ no_trailing_slash()
 
 # Load the Debian packages file. This is a long text file that will list
 # each package for a given release.
-# $1: Mirror base URL (e.g. http://mirrors.us.kernel.org/)
+# $1: Mirror base URL (e.g. http://mirrors.kernel.org/)
 # $2: Release name
 get_packages_list ()
 {
@@ -102,11 +121,11 @@ get_packages_list ()
 	SRCFILE="$BASE/${DISTRO}/dists/$RELEASE/main/binary-$ARCH/Packages.xz"
 	DSTFILE="$DOWNLOAD_DIR/Packages-$ARCH.xz"
 	download_file "$SRCFILE" "$DSTFILE" || return 1
-	(cd $DOWNLOAD_DIR && xzcat Packages-$ARCH.xz/Packages.xz > Packages-$ARCH)
+	(cd $DOWNLOAD_DIR && xzcat Packages-$ARCH.xz/Packages.xz >Packages-$ARCH)
 
 
     # Write a small awk script used to extract filenames for a given package
-    cat > $DOWNLOAD_DIR/extract-filename.awk <<EOF
+    cat >$DOWNLOAD_DIR/extract-filename.awk <<EOF
 BEGIN {
     # escape special characters in package name
     gsub("\\\\.","\\\\.",PKG)
@@ -150,6 +169,26 @@ get_package_deb_url ()
     echo "$2/${DISTRO}/$FILE"
 }
 
+fix_symlinks()
+{
+	(
+		if [ -d ${SYSROOT}/lib ]; then
+			cd ${SYSROOT}/lib
+			for i in *; do
+				ln -svf */${i} ${i}
+			done
+		fi
+	)
+	(
+		if [ -d ${SYSROOT}/lib64 ]; then
+			cd ${SYSROOT}/lib64
+			for i in *; do
+				ln -svf */${i} ${i}
+			done
+		fi
+	)
+}
+
 install()
 {
 	get_packages_list "$MIRROR" "$RELEASE"
@@ -165,7 +204,6 @@ install()
 	#	SHA1=$(echo $LINE | awk '{ print $1; }')
 	#	printf "%-64s %s\n" $PACKAGE $SHA1 >> $DOWNLOAD_DIR/SOURCES
 	#done
-
 	for PACKAGE in $PACKAGES; do
 		FAKEROOT="`mktemp -d /tmp/altitude_fakeroot.XXXXXXX`"
 		PKGURL=`get_package_deb_url $PACKAGE $MIRROR $ARCH`
@@ -178,6 +216,8 @@ install()
 		rsync -r ${FAKEROOT}/* ${SYSROOT} >/dev/null 2>&1 || return 1
 		rm -rf ${FAKEROOT}
 	done
+	
+	fix_symlinks
 }
 
 uninstall()
